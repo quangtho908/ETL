@@ -18,6 +18,12 @@ export class Config {
   queryUrlDetail: string
 
   @Prop({type: mongoose.Schema.Types.String})
+  queryPricing: string
+
+  @Prop({type: mongoose.Schema.Types.String})
+  queryName: string
+
+  @Prop({type: mongoose.Schema.Types.String})
   params: string
 
   @Prop({type: mongoose.Schema.Types.String})
