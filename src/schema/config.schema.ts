@@ -1,10 +1,13 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import mongoose, { Document } from 'mongoose';
+import mongoose, { Document, Types } from 'mongoose';
 
 export type ConfigDocument = Document<Config>;
 
 @Schema({ collection: 'config' })
 export class Config {
+  @Prop({ type: mongoose.Schema.Types.ObjectId })
+  _id: Types.ObjectId;
+
   @Prop({ type: mongoose.Schema.Types.String })
   url: string;
 

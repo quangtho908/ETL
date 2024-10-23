@@ -3,13 +3,17 @@ import { InjectModel } from '@nestjs/mongoose';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 import { link, writeFileSync } from 'fs';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { Config } from 'src/schema/config.schema';
+import { Log } from 'src/schema/log.schema';
 
 @Injectable()
 export class ExtractService {
   private configs: Config[];
-  constructor(@InjectModel(Config.name) private configModel: Model<Config>) {}
+  constructor(
+    @InjectModel(Config.name) private configModel: Model<Config>,
+    @InjectModel(Log.name) private logModel: Model<Log>,
+  ) {}
 
   async getConfig() {
     const configsList = await this.configModel.find({});
@@ -105,6 +109,12 @@ export class ExtractService {
         });
         const html = response.data.listproducts;
         if (!html || html.trim() === '') {
+          await this.logEvent(
+            config._id,
+            'Completed',
+            'No more data to fetch',
+            `Completed at page index ${pageIndex}`,
+          );
           break;
         }
         const $ = cheerio.load(html);
@@ -116,10 +126,32 @@ export class ExtractService {
         });
         pageIndex++;
       } catch (error) {
+        await this.logEvent(
+          config._id,
+          'Error',
+          'Error fetching data',
+          error.message,
+        );
         console.error('Error fetching data:', error);
         break;
       }
     }
     return links;
+  }
+
+  async logEvent(
+    configId: Types.ObjectId,
+    status: string,
+    message: string,
+    details: string,
+  ) {
+    const logEntry = new this.logModel({
+      configId,
+      timestamp: new Date(),
+      status,
+      message,
+      details,
+    });
+    await logEntry.save();
   }
 }
