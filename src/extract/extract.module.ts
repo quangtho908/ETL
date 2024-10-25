@@ -5,6 +5,7 @@ import { ExtractService } from "./extract.service";
 import { Log, LogSchema } from "src/schema/log.schema";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { Staging } from "src/entities/staging.entity";
+import { CleanService } from "./clean.service";
 
 @Module({
   imports: [
@@ -14,7 +15,7 @@ import { Staging } from "src/entities/staging.entity";
     ]),
     TypeOrmModule.forFeature([Staging])
   ],
-  providers: [ExtractService],
-  exports: [ExtractService]
+  providers: [ExtractService, CleanService],
+  exports: [ExtractService, CleanService]
 })
 export class ExtractModule {}

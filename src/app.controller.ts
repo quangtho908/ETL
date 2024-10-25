@@ -1,10 +1,14 @@
 import { Controller, Get } from '@nestjs/common';
 import { AppService } from './app.service';
 import { ExtractService } from './extract/extract.service';
+import { CleanService } from './extract/clean.service';
 
 @Controller()
 export class AppController {
-  constructor(private extractService: ExtractService) {}
+  constructor(
+    private extractService: ExtractService,
+    private cleanService: CleanService
+  ) {}
 
   @Get()
   getHello() {
@@ -14,5 +18,10 @@ export class AppController {
   @Get("staging")
   upStaging() {
     return this.extractService.loadToStaging("dienmayxanh")    
+  }
+
+  @Get("clean")
+  clean() {
+    return this.cleanService.clean("671707e06d945da2d303891f")
   }
 }

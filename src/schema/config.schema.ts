@@ -67,6 +67,9 @@ export class Config {
 
   @Prop({ type: mongoose.Schema.Types.Date })
   lastTimeCrawlData: Date;
+
+  @Prop({ type: mongoose.Schema.Types.String })
+  cleanOptions: string
 }
 
 export const ConfigSchema = SchemaFactory.createForClass(Config);

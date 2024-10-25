@@ -3,6 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { InjectRepository } from '@nestjs/typeorm';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
+import { attr } from 'cheerio/dist/commonjs/api/attributes';
 import { createReadStream, createWriteStream } from 'fs';
 import { Model, Types } from 'mongoose';
 import { Staging } from 'src/entities/staging.entity';
