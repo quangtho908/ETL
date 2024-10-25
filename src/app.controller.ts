@@ -10,4 +10,9 @@ export class AppController {
   getHello() {
     return this.extractService.extract()
   }
+
+  @Get("staging")
+  upStaging() {
+    return this.extractService.loadToStaging("dienmayxanh")    
+  }
 }

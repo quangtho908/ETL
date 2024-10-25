@@ -1,11 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
+import { InjectRepository } from '@nestjs/typeorm';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
-import { link, writeFileSync } from 'fs';
+import { createReadStream, createWriteStream } from 'fs';
 import { Model, Types } from 'mongoose';
+import { Staging } from 'src/entities/staging.entity';
 import { Config } from 'src/schema/config.schema';
 import { Log } from 'src/schema/log.schema';
+import { Repository } from 'typeorm';
 
 @Injectable()
 export class ExtractService {
@@ -13,6 +16,7 @@ export class ExtractService {
   constructor(
     @InjectModel(Config.name) private configModel: Model<Config>,
     @InjectModel(Log.name) private logModel: Model<Log>,
+    @InjectRepository(Staging) private stagingRepo: Repository<Staging>
   ) {}
 
   async getConfig() {
@@ -42,12 +46,26 @@ export class ExtractService {
         allProductsDetails.push(...productsDetails);
       }
 
-      writeFileSync(
-        config.file,
-        JSON.stringify(allProductsDetails, null, 2),
-        'utf-8',
-      );
+      const writeStream = createWriteStream(`extracts_data/${config.file}`)
+      writeStream.write(JSON.stringify(allProductsDetails, null, 2))
+
+      writeStream.on("close", () => this.loadToStaging(config.name))
     }
+  }
+
+  async loadToStaging(name: string) {
+    let data = ''
+    const readStream = createReadStream(`extracts_data/${name}.json`)
+
+    readStream.on("data", (chunk) => {
+      data += chunk
+    })
+
+    readStream.on("end", async () =>  {
+      const entities = JSON.parse(data)
+      await this.stagingRepo.clear()
+      this.stagingRepo.save(entities)
+    })
   }
 
   async getProductDetails(link, config: Config, product) {
@@ -75,7 +93,6 @@ export class ExtractService {
     const url = `${config.url}${config.path}${config.params}`;
     const headers = JSON.parse(config.headers);
     let pageIndex = 0;
-    let links = [];
     const result = [];
     while (true) {
       try {
@@ -96,21 +113,16 @@ export class ExtractService {
           break;
         }
         const $ = cheerio.load(html);
-        const patch: {link: string, name: string, pricing: string} = {
-          link: '',
-          name: '',
-          pricing: ''
-        }
         $(config.queryUrlDetail).each((_index, element) => {
           const href = $(element).attr('href');
           if(href) {
-            patch.name = $(element).find(config.queryName).text().trim();
-            patch.pricing = $(element).find(config.queryPricing).text().trim();
-            patch.link = `${config.url}${href}`
-            result.push(patch)
+            result.push({
+              name: $(element).find(config.queryName).text().trim(),
+              pricing: $(element).find(config.queryPricing).text().trim(),
+              link: `${config.url}${href}`
+            })
           };
         });
-
         pageIndex++;
       } catch (error) {
         await this.logEvent(

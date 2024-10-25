@@ -130,4 +130,10 @@ export class Staging {
 
   @Column({ nullable: true })
   brand: string;
+
+  @Column({ nullable: true })
+  name: string
+
+  @Column({ nullable: true })
+  pricing: string
 }
