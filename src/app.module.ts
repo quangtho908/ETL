@@ -5,7 +5,6 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { ExtractModule } from './extract/extract.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Staging } from './entities/staging.entity';
-
 @Module({
   imports: [
     MongooseModule.forRoot('mongodb://localhost:27017', {
