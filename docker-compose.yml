@@ -14,5 +14,6 @@ services:
       - 5432:5432
     volumes:
       - ./postgres:/var/lib/postgresql/data
+      - ./extracts_data/:/staging
     environment:
       - POSTGRES_PASSWORD=admin

@@ -3,13 +3,13 @@ import { InjectModel } from '@nestjs/mongoose';
 import { InjectRepository } from '@nestjs/typeorm';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
-import { attr } from 'cheerio/dist/commonjs/api/attributes';
-import { createReadStream, createWriteStream } from 'fs';
+import { createReadStream, createWriteStream, rm, rmSync } from 'fs';
 import { Model, Types } from 'mongoose';
 import { Staging } from 'src/entities/staging.entity';
 import { Config } from 'src/schema/config.schema';
 import { Log } from 'src/schema/log.schema';
 import { Repository } from 'typeorm';
+import {json2csv} from "json-2-csv"
 
 @Injectable()
 export class ExtractService {
@@ -35,38 +35,42 @@ export class ExtractService {
       const products = await this.fetchLinks(config);
       const chunkSize = 10;
       const allProductsDetails = [];
+      let id = 1;
       for (let i = 0; i < products.length; i += chunkSize) {
         const chunk = products.slice(i, i + chunkSize);
         const productsDetails = await Promise.all(
           chunk.map((product) => this.getProductDetails(product.link, config, {
+            id: id++,
             name: product.name,
             pricing: product.pricing
           })),
         );
-
-        allProductsDetails.push(...productsDetails);
+        allProductsDetails.push(...productsDetails)
       }
-
+      rmSync(`extracts_data/${config.file}`, {force: true})
       const writeStream = createWriteStream(`extracts_data/${config.file}`)
-      writeStream.write(JSON.stringify(allProductsDetails, null, 2))
+      const csv = await json2csv(this.stagingRepo.create(allProductsDetails))
 
+      writeStream.write(csv)
       writeStream.on("close", () => this.loadToStaging(config.name))
     }
   }
 
   async loadToStaging(name: string) {
-    let data = ''
-    const readStream = createReadStream(`extracts_data/${name}.json`)
+    const file = process.env.PWD + `/extracts_data/${name}.csv`;
+    await this.stagingRepo.clear();
+    // let data = ''
+    // const readStream = createReadStream(`extracts_data/${name}.csv`)
 
-    readStream.on("data", (chunk) => {
-      data += chunk
-    })
+    // readStream.on("data", (chunk) => {
+    //   data += chunk
+    // })
 
-    readStream.on("end", async () =>  {
-      const entities = JSON.parse(data)
-      await this.stagingRepo.clear()
-      this.stagingRepo.save(entities)
-    })
+    // readStream.on("end", async () =>  {
+    //   const entities = JSON.parse(data)
+    //   await this.stagingRepo.clear()
+    //   this.stagingRepo.save(entities)
+    // })
   }
 
   async getProductDetails(link, config: Config, product) {
@@ -81,13 +85,14 @@ export class ExtractService {
           const name = $(element).find(q.name).text().trim();
           let value = $(element).find(q.value).text().trim();
           value = value.replace(/\n\s{52}/g, '_');
-          details[mapKey[name]] = value;
+          
+          mapKey[name] && (details[mapKey[name]] = value);
         });
         return;
       }
       details[q.name] = $(q.value).text().trim();
     });
-    return {...details, ...product};
+    return {...product, ...details};
   }
 
   async fetchLinks(config: Config) {
