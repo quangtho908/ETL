@@ -1,5 +1,13 @@
 [
   {
+    "action": {
+      "replaceAll": {
+        "text": "undefined",
+        "value": ""
+      }
+    }
+  },
+  {
     "attr": "cpu",
     "action": {
       "replace": {
@@ -15,7 +23,7 @@
         "text": ". Xem thông tin hãng",
         "value": ""
       },
-      "fillMissing": {
+      "replaceDepend": {
         "range": [0, 1],
         "depend": "name"
       },
@@ -29,7 +37,7 @@
     "attr": "pricing",
     "action": {
       "replace": {
-        "text": "[\\.đ]",
+        "text": "[\\.₫]",
         "value": ""
       }
     }

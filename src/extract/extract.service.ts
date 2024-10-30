@@ -3,7 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { InjectRepository } from '@nestjs/typeorm';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
-import { createWriteStream, rmSync, readFileSync } from 'fs';
+import { createWriteStream, rmSync } from 'fs';
 import { Model, Types } from 'mongoose';
 import { Staging } from 'src/entities/staging.entity';
 import { Config } from 'src/schema/config.schema';
@@ -11,6 +11,7 @@ import { Log } from 'src/schema/log.schema';
 import { Repository } from 'typeorm';
 import { json2csv } from 'json-2-csv';
 import * as process from 'node:process';
+import { readFile } from '../utils';
 
 @Injectable()
 export class ExtractService {
@@ -61,9 +62,11 @@ export class ExtractService {
   }
 
   async loadToStaging(name: string) {
-    const sql = readFileSync(process.env.PWD + `/sqls/${name}.sql`).toString();
+    const sql = await readFile(process.env.PWD + `/sqls/${name}.sql`);
     await this.stagingRepo.clear();
-    await this.stagingRepo.query(sql);
+    if (typeof sql === 'string') {
+      await this.stagingRepo.query(sql);
+    }
   }
 
   async getProductDetails(
