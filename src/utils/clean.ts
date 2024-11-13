@@ -15,8 +15,20 @@ export const cleanAction = {
   replaceBy(
     product: { [x: string]: any },
     attribute: string | number | undefined,
-    data: { contains: any; value: any },
+    data: { contains: any; value: any } | { contains: any; value: any }[],
   ) {
+    if (Array.isArray(data)) {
+      for (const child of data) {
+        for (const contain of child.contains) {
+          if (
+            product[attribute].toLowerCase().indexOf(contain.toLowerCase()) >= 0
+          ) {
+            return child.value;
+          }
+        }
+      }
+      return product[attribute] || '';
+    }
     for (const contain of data.contains) {
       if (
         product[attribute].toLowerCase().indexOf(contain.toLowerCase()) >= 0
@@ -26,7 +38,6 @@ export const cleanAction = {
     }
     return product[attribute] || '';
   },
-
   replaceDepend(
     product: { [x: string]: any },
     attribute: string | number | undefined,
@@ -41,10 +52,17 @@ export const cleanAction = {
   replaceAll(
     product: { [x: string]: any },
     attribute: string | number | undefined,
-    data,
+    data: { contains: any; value: any },
   ) {
     for (const field in product) {
-      if (product[field] === data.text) product[field] = data.value;
+      for (const contain of data.contains) {
+        if (
+          typeof product[field] === 'string' &&
+          product[field].toLowerCase() === contain.toLowerCase()
+        ) {
+          product[field] = data.value;
+        }
+      }
     }
   },
 };

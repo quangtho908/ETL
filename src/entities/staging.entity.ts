@@ -1,6 +1,6 @@
-import { Column, Entity, PrimaryGeneratedColumn } from "typeorm";
+import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
 
-@Entity("staging")
+@Entity('staging')
 export class Staging {
   @PrimaryGeneratedColumn()
   id: number;
@@ -57,7 +57,7 @@ export class Staging {
   screen_size: string;
 
   @Column({ nullable: true })
-  max_brighness: string;
+  max_brightness: string;
 
   @Column({ nullable: true })
   tempered_glass: string;
@@ -69,13 +69,13 @@ export class Staging {
   battery_type: string;
 
   @Column({ nullable: true })
-  max_chagre: string;
+  max_charge: string;
 
   @Column({ nullable: true })
   battery_technology: string;
 
   @Column({ nullable: true })
-  securtity: string;
+  security: string;
 
   @Column({ nullable: true })
   special_feature: string;
@@ -132,8 +132,8 @@ export class Staging {
   brand: string;
 
   @Column({ nullable: true })
-  name: string
+  name: string;
 
   @Column({ nullable: true })
-  pricing: string
+  pricing: string;
 }

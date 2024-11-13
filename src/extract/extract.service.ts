@@ -57,7 +57,7 @@ export class ExtractService {
       const csv = json2csv(allProductsDetails);
 
       writeStream.write(csv);
-      writeStream.on('close', () => this.loadToStaging(config.name));
+      writeStream.on('finish', () => this.loadToStaging(config.name));
     }
   }
 

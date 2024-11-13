@@ -2,7 +2,7 @@
   {
     "action": {
       "replaceAll": {
-        "text": "undefined",
+        "contains": ["undefined", "Hãng không công bố"],
         "value": ""
       }
     }
@@ -47,6 +47,47 @@
     "action": {
       "replace": {
         "text": "\\b\\d+GB\\/\\d+GB\\b",
+        "value": ""
+      }
+    }
+  },
+  {
+    "attr": "back_cam_movie",
+    "action": {
+      "replaceBy": [
+        {
+          "contains": ["FullHD", "1080p"],
+          "value": "FullHD"
+        },
+        {
+          "contains": ["HD", "720p"],
+          "value": "HD"
+        },
+        {
+          "contains": ["4k", "2160p"],
+          "value": "4k"
+        },
+        {
+          "contains": ["8k", "4320p"],
+          "value": "8k"
+        }
+      ]
+    }
+  },
+  {
+    "attr": "battery_size",
+    "action": {
+      "replace": {
+        "text": "\\b\\d+\\s*giờ|mAh",
+        "value": ""
+      }
+    }
+  },
+  {
+    "attr": "max_charge",
+    "action": {
+      "replace": {
+        "text": " W",
         "value": ""
       }
     }

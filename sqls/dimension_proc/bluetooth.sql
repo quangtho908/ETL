@@ -1,0 +1,1 @@
+SELECT insert_or_get_bluetooth('<bluetooth>') as id;
