@@ -35,6 +35,12 @@ export class ExtractService {
   async extract() {
     await this.getConfig();
     for (const config of this.configs) {
+      await this.logEvent(
+        config._id,
+        'Started',
+        'Crawl started',
+        'Starting data extraction process.',
+      );
       const products = await this.fetchLinks(config);
       const chunkSize = 10;
       const allProductsDetails = [];
@@ -57,7 +63,15 @@ export class ExtractService {
       const csv = json2csv(allProductsDetails);
 
       writeStream.write(csv);
-      writeStream.on('close', () => this.loadToStaging(config.name));
+      writeStream.on('close', async () => {
+        await this.loadToStaging(config.name);
+        await this.logEvent(
+          config._id,
+          'Completed',
+          'Crawl completed',
+          'Data extraction and loading to staging completed successfully.',
+        );
+      });
     }
   }
 
@@ -101,6 +115,12 @@ export class ExtractService {
     const result = [];
     while (true) {
       try {
+        await this.logEvent(
+          config._id,
+          'In Progress',
+          'Fetching page',
+          `Fetching page index ${pageIndex}`,
+        );
         const response = await axios({
           url: url + pageIndex,
           method: config.methodList,
@@ -134,7 +154,7 @@ export class ExtractService {
           config._id,
           'Error',
           'Error fetching data',
-          error.message,
+          `Error fetching data at page index ${pageIndex}: ${error.message}`,
         );
         console.error('Error fetching data:', error);
         break;

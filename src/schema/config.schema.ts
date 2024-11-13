@@ -57,9 +57,6 @@ export class Config {
   path: string;
 
   @Prop({ type: mongoose.Schema.Types.Boolean })
-  isActive: boolean;
-
-  @Prop({ type: mongoose.Schema.Types.Boolean })
   isLoginRequired: boolean;
 
   @Prop({ type: mongoose.Schema.Types.String })
@@ -69,7 +66,7 @@ export class Config {
   lastTimeCrawlData: Date;
 
   @Prop({ type: mongoose.Schema.Types.String })
-  cleanOptions: string
+  cleanOptions: string;
 }
 
 export const ConfigSchema = SchemaFactory.createForClass(Config);
