@@ -1,0 +1,1 @@
+SELECT * FROM insert_or_get_wire_type_ids('<port_charge>', '<headset_Type>');

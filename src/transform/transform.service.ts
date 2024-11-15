@@ -33,12 +33,11 @@ export class TransformService {
 
   async start() {
     const tables = await this.getTables();
-    const [querys, columns, procs] = await Promise.all([
-      this.getSql(tables),
-      this.getColumns(tables),
+    const [transfromSQL, procs] = await Promise.all([
+      this.getTransformSQL(),
       this.getProc(tables),
     ]);
-    await this.transform(querys, columns, procs, tables);
+    await this.transform(procs, tables, transfromSQL.toString());
   }
 
   async getTables() {
@@ -50,34 +49,8 @@ export class TransformService {
       .filter((name) => name !== 'phone_table');
   }
 
-  async getColumns(tables: string[]) {
-    const result = {};
-    for (const tableName of tables) {
-      if (tableName === 'phone_table') continue;
-      const columns = await this.dataSource.query(
-        `SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = '${tableName}';`,
-      );
-      result[tableName] = columns
-        .map((column: { column_name: any }) => column.column_name)
-        .filter((column: string) => column !== 'id');
-    }
-    return result;
-  }
-
-  async getSql(tables: string[]) {
-    const result = {};
-    await Promise.all(
-      tables.map(async (table) => {
-        if (
-          fileExistsSync(`${process.env.PWD}/sqls/dimension_query/${table}.sql`)
-        ) {
-          result[table] = await readFile(
-            `${process.env.PWD}/sqls/dimension_query/${table}.sql`,
-          );
-        }
-      }),
-    );
-    return result;
+  async getTransformSQL() {
+    return await readFile(`${process.env.PWD}/sqls/exec/staging/transform.sql`);
   }
 
   async getProc(tables: string[]) {
@@ -85,10 +58,10 @@ export class TransformService {
     await Promise.all(
       tables.map(async (table) => {
         if (
-          fileExistsSync(`${process.env.PWD}/sqls/dimension_proc/${table}.sql`)
+          fileExistsSync(`${process.env.PWD}/sqls/exec/dimension/${table}.sql`)
         ) {
           result[table] = await readFile(
-            `${process.env.PWD}/sqls/dimension_proc/${table}.sql`,
+            `${process.env.PWD}/sqls/exec/dimension/${table}.sql`,
           );
         }
       }),
@@ -97,11 +70,11 @@ export class TransformService {
   }
 
   async transform(
-    querys: { [fieldName: string]: string },
-    columns: { [fieldName: string]: string[] },
     procs: { [fieldName: string]: string },
     tables: string[],
+    transformSQL: string,
   ) {
+    await this.dataSourceStaging.query('TRUNCATE staging_transform');
     let offset = 0;
     while (true) {
       const data = await this.dataSourceStaging.query(
@@ -110,8 +83,8 @@ export class TransformService {
       if (data.length === 0) break;
       Promise.all(
         data.map(async (child) => {
+          let cloneTransformSQL = transformSQL;
           for (const table of tables) {
-            const query = querys[table];
             const proc = procs[table];
 
             if (!!proc) {
@@ -125,9 +98,26 @@ export class TransformService {
                   `${child[column] || 'NULL'}`,
                 );
               }
-              const result = await this.dataSource.query(cloneProc);
+              const results = await this.dataSource.query(cloneProc);
+              for (const field in results[0]) {
+                cloneTransformSQL = cloneTransformSQL.replace(
+                  `<${field}>`,
+                  results[0][field] || 'NULL',
+                );
+              }
             }
           }
+          const columns = cloneTransformSQL
+            .match(/<([^>]+)>/g)
+            .map((match) => match.slice(1, -1));
+          for (const column of columns) {
+            cloneTransformSQL = cloneTransformSQL.replace(
+              `<${column}>`,
+              `${child[column] || 'NULL'}`,
+            );
+          }
+
+          this.dataSourceStaging.query(cloneTransformSQL);
         }),
       );
       offset += 50;

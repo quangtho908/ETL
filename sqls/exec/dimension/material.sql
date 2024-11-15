@@ -1,0 +1,1 @@
+SELECT insert_or_get_material('<material>') as material_id;
