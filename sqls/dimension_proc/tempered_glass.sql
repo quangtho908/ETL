@@ -1,1 +1,0 @@
-SELECT insert_or_get_tempered_glass('<tempered_glass>') as id;

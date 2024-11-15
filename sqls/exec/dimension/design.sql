@@ -1,0 +1,1 @@
+SELECT insert_or_get_design('<design>') as design_id;

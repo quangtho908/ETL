@@ -1,0 +1,1 @@
+SELECT insert_or_get_storage('<storage>', '<free_storage>') as storage_id;
