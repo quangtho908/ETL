@@ -1,4 +1,4 @@
 COPY public.staging
-FROM '/staging/dienmayxanh.csv'
+FROM '/extracts_data/dienmayxanh.csv'
 DELIMITER ','
 CSV HEADER;

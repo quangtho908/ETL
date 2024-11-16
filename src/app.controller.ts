@@ -1,5 +1,5 @@
 import { Controller, Get } from '@nestjs/common';
-import { ExtractService } from './extract/extract.service.bak';
+import { ExtractService } from './extract/extract.service';
 import { CleanService } from './extract/clean.service';
 import { TransformService } from './transform/transform.service';
 
