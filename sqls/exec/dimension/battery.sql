@@ -3,4 +3,4 @@ SELECT upsert_battery(
     '<battery_type>',
     <max_charge>,
     '<battery_technology>'
-) as id;
+) as battery_id;
