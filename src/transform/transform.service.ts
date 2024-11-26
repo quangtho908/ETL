@@ -106,13 +106,23 @@ export class TransformService {
                   `${child[column] || 'NULL'}`,
                 );
               }
-
-              const results = await this.dataSource.query(cloneProc);
-              for (const field in results[0]) {
-                cloneTransformSQL = cloneTransformSQL.replace(
-                  `<${field}>`,
-                  results[0][field] || 'NULL',
+              try {
+                const results = await this.dataSource.query(cloneProc);
+                for (const field in results[0]) {
+                  cloneTransformSQL = cloneTransformSQL.replace(
+                    `<${field}>`,
+                    results[0][field] || 'NULL',
+                  );
+                }
+              } catch (error) {
+                await this.logEvent(
+                  null,
+                  'Warning',
+                  `LOAD TO DIMENSION IS MISSING: ${cloneProc}`,
+                  error.message,
                 );
+
+                return;
               }
             }
           }
@@ -130,8 +140,8 @@ export class TransformService {
           } catch (error) {
             await this.logEvent(
               null,
-              'Warning',
-              `LOAD TO DIMENSION IS MISSING: ${cloneTransformSQL}`,
+              'ERROR',
+              `TRANSFORM IS ERROR: ${cloneTransformSQL}`,
               error.message,
             );
           }
