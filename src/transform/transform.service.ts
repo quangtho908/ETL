@@ -3,7 +3,7 @@ import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { InjectModel } from '@nestjs/mongoose';
 import { Config } from '../schema/config.schema';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { Log } from '../schema/log.schema';
 import { readFile } from '../utils';
 import * as process from 'node:process';
@@ -33,11 +33,11 @@ export class TransformService {
 
   async start() {
     const tables = await this.getTables();
-    const [transfromSQL, procs] = await Promise.all([
+    const [transformSQL, procs] = await Promise.all([
       this.getTransformSQL(),
       this.getProc(tables),
     ]);
-    await this.transform(procs, tables, transfromSQL.toString());
+    await this.transform(procs, tables, transformSQL.toString());
   }
 
   async getTables() {
@@ -63,7 +63,15 @@ export class TransformService {
           result[table] = await readFile(
             `${process.env.PWD}/sqls/exec/dimension/${table}.sql`,
           );
+          return;
         }
+
+        await this.logEvent(
+          null,
+          'Warning',
+          `MISSING PROCEDURE FOR DIMENSION TABLE: ${table}`,
+          'Missing warning',
+        );
       }),
     );
     return result;
@@ -81,7 +89,7 @@ export class TransformService {
         `SELECT * FROM public.staging ORDER BY id OFFSET ${offset} LIMIT 50`,
       );
       if (data.length === 0) break;
-      Promise.all(
+      await Promise.all(
         data.map(async (child) => {
           let cloneTransformSQL = transformSQL;
           for (const table of tables) {
@@ -98,6 +106,7 @@ export class TransformService {
                   `${child[column] || 'NULL'}`,
                 );
               }
+
               const results = await this.dataSource.query(cloneProc);
               for (const field in results[0]) {
                 cloneTransformSQL = cloneTransformSQL.replace(
@@ -116,11 +125,35 @@ export class TransformService {
               `${child[column] || 'NULL'}`,
             );
           }
-
-          this.dataSourceStaging.query(cloneTransformSQL);
+          try {
+            await this.dataSourceStaging.query(cloneTransformSQL);
+          } catch (error) {
+            await this.logEvent(
+              null,
+              'Warning',
+              `LOAD TO DIMENSION IS MISSING: ${cloneTransformSQL}`,
+              error.message,
+            );
+          }
         }),
       );
       offset += 50;
     }
+  }
+
+  async logEvent(
+    configId: Types.ObjectId,
+    status: string,
+    message: string,
+    details: string,
+  ) {
+    const logEntry = new this.logModel({
+      configId,
+      timestamp: new Date(),
+      status,
+      message,
+      details,
+    });
+    await logEntry.save();
   }
 }
