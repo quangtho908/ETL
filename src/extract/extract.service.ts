@@ -59,8 +59,12 @@ export class ExtractService {
       const csv = json2csv(allProductsDetails);
 
       writeStream.write(csv, async () => {
-        await directusDeleteFile(config.file);
-        await directusUploadFile(config.file);
+        await directusDeleteFile(
+          `${process.env.PWD}/extracts_data/${config.file}`,
+        );
+        await directusUploadFile(
+          `${process.env.PWD}/extracts_data/${config.file}`,
+        );
       });
     }
   }
