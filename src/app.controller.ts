@@ -16,7 +16,7 @@ export class AppController {
   }
 
   @Get('staging') upStaging() {
-    return this.extractService.loadToStaging('dienmayxanh');
+    return this.extractService.loadToStaging();
   }
 
   @Get('clean') clean() {

@@ -11,7 +11,8 @@ import { Log } from 'src/schema/log.schema';
 import { Repository } from 'typeorm';
 import { json2csv } from 'json-2-csv';
 import * as process from 'node:process';
-import { readFile } from '../utils';
+import { directusDeleteFile, directusUploadFile, readFile } from '../utils';
+import * as _ from 'lodash';
 
 @Injectable()
 export class ExtractService {
@@ -25,6 +26,7 @@ export class ExtractService {
 
   async getConfig() {
     const configsList = await this.configModel.find({});
+    if (!_.isEmpty(this.configs)) return;
     this.configs = configsList.filter(
       (configData) =>
         (configData.mapExtract !== null || configData.url !== null) &&
@@ -56,16 +58,32 @@ export class ExtractService {
       const writeStream = createWriteStream(`extracts_data/${config.file}`);
       const csv = json2csv(allProductsDetails);
 
-      writeStream.write(csv);
-      writeStream.on('finish', () => this.loadToStaging(config.name));
+      writeStream.write(csv, async () => {
+        await directusDeleteFile(config.file);
+        await directusUploadFile(config.file);
+      });
     }
   }
 
-  async loadToStaging(name: string) {
-    const sql = await readFile(process.env.PWD + `/sqls/${name}.sql`);
-    await this.stagingRepo.clear();
-    if (typeof sql === 'string') {
-      await this.stagingRepo.query(sql);
+  async loadToStaging() {
+    await this.getConfig();
+    for (const config of this.configs) {
+      const sql = await readFile(
+        process.env.PWD + `/sqls/loadToStaging/${config.name}.sql`,
+      );
+      await this.stagingRepo.clear();
+      if (typeof sql === 'string') {
+        try {
+          await this.stagingRepo.query(sql);
+        } catch (error) {
+          await this.logEvent(
+            config._id,
+            'WARNING',
+            `MISSING IMPORT TO STAGING: ${config.name}`,
+            error.message,
+          );
+        }
+      }
     }
   }
 
