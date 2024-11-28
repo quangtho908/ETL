@@ -1,4 +1,4 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Post } from '@nestjs/common';
 import { ExtractService } from './extract/extract.service';
 import { CleanService } from './extract/clean.service';
 import { TransformService } from './transform/transform.service';
@@ -11,7 +11,7 @@ export class AppController {
     private transformService: TransformService,
   ) {}
 
-  @Get() getHello() {
+  @Get('extract') extract() {
     return this.extractService.extract();
   }
 

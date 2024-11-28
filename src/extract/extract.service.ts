@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { InjectRepository } from '@nestjs/typeorm';
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 import { createWriteStream, rmSync } from 'fs';
@@ -8,10 +8,10 @@ import { Model, Types } from 'mongoose';
 import { Staging } from 'src/entities/staging.entity';
 import { Config } from 'src/schema/config.schema';
 import { Log } from 'src/schema/log.schema';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { json2csv } from 'json-2-csv';
 import * as process from 'node:process';
-import { directusDeleteFile, directusUploadFile, readFile } from '../utils';
+import { directusCreateFolder, directusUploadFile, readFile } from '../utils';
 import * as _ from 'lodash';
 
 @Injectable()
@@ -22,6 +22,7 @@ export class ExtractService {
     @InjectModel(Config.name) private configModel: Model<Config>,
     @InjectModel(Log.name) private logModel: Model<Log>,
     @InjectRepository(Staging) private stagingRepo: Repository<Staging>,
+    @InjectDataSource() private dataSourceStaging: DataSource,
   ) {}
 
   async getConfig() {
@@ -36,49 +37,65 @@ export class ExtractService {
 
   async extract() {
     await this.getConfig();
+    let id = 1;
+    const folderId = await directusCreateFolder(
+      'c461424e-297f-4b59-9806-68b414b09700',
+      new Date().toLocaleDateString(),
+    );
     for (const config of this.configs) {
-      const products = await this.fetchLinks(config);
-      const chunkSize = 10;
-      const allProductsDetails = [];
-      let id = 1;
-      for (let i = 0; i < products.length; i += chunkSize) {
-        const chunk = products.slice(i, i + chunkSize);
-        const productsDetails = await Promise.all(
-          chunk.map((product) =>
-            this.getProductDetails(product.link, config, {
-              id: id++,
-              name: product.name,
-              pricing: product.pricing,
-            }),
-          ),
+      try {
+        const products = await this.fetchLinks(config);
+        const chunkSize = 10;
+        const allProductsDetails = [];
+        for (let i = 0; i < products.length; i += chunkSize) {
+          const chunk = products.slice(i, i + chunkSize);
+          const productsDetails = await Promise.all(
+            chunk.map((product) =>
+              this.getProductDetails(product.link, config, {
+                id: id++,
+                name: product.name,
+                pricing: product.pricing,
+              }),
+            ),
+          );
+          allProductsDetails.push(...productsDetails);
+        }
+        rmSync(`${process.env.PWD}/extracts_data/${config.file}`, {
+          force: true,
+        });
+        const writeStream = createWriteStream(
+          `${process.env.PWD}/extracts_data/${config.file}`,
         );
-        allProductsDetails.push(...productsDetails);
+        const csv = json2csv(allProductsDetails);
+        writeStream.write(csv, async () => {
+          await directusUploadFile(
+            `${process.env.PWD}/extracts_data/${config.file}`,
+            folderId,
+          );
+        });
+      } catch (error) {
+        await this.logEvent(
+          config._id,
+          'WARNING',
+          `EXTRACT ERROR: ${config.name}`,
+          error.message,
+        );
       }
-      rmSync(`extracts_data/${config.file}`, { force: true });
-      const writeStream = createWriteStream(`extracts_data/${config.file}`);
-      const csv = json2csv(allProductsDetails);
-
-      writeStream.write(csv, async () => {
-        await directusDeleteFile(
-          `${process.env.PWD}/extracts_data/${config.file}`,
-        );
-        await directusUploadFile(
-          `${process.env.PWD}/extracts_data/${config.file}`,
-        );
-      });
     }
   }
 
   async loadToStaging() {
     await this.getConfig();
+    await this.stagingRepo.clear();
+    const sql = await readFile(
+      `${process.env.PWD}/sqls/loadToStaging/loadToStaging.sql`,
+    );
     for (const config of this.configs) {
-      const sql = await readFile(
-        process.env.PWD + `/sqls/loadToStaging/${config.name}.sql`,
-      );
-      await this.stagingRepo.clear();
       if (typeof sql === 'string') {
+        let cloneSQL = sql;
+        cloneSQL = cloneSQL.replace('<path>', `/extracts_data/${config.file}`);
         try {
-          await this.stagingRepo.query(sql);
+          await this.dataSourceStaging.query(cloneSQL);
         } catch (error) {
           await this.logEvent(
             config._id,
