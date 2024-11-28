@@ -82,6 +82,7 @@ export class ExtractService {
         );
       }
     }
+    await this.logEvent(null, 'SUCCESSFULLY', 'EXTRACT DONE', '');
   }
 
   async loadToStaging() {
@@ -106,6 +107,8 @@ export class ExtractService {
         }
       }
     }
+
+    await this.logEvent(null, 'SUCCESSFULLY', 'LOAD TO STAGING DONE', '');
   }
 
   async getProductDetails(

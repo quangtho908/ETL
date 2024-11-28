@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { InjectModel } from '@nestjs/mongoose';
@@ -38,6 +38,7 @@ export class TransformService {
       this.getProc(tables),
     ]);
     await this.transform(procs, tables, transformSQL.toString());
+    await this.logEvent(null, 'SUCCESSFULLY', 'TRANSFORM DONE', '');
   }
 
   async getTables() {
@@ -50,7 +51,18 @@ export class TransformService {
   }
 
   async getTransformSQL() {
-    return await readFile(`${process.env.PWD}/sqls/exec/staging/transform.sql`);
+    if (fileExistsSync(`${process.env.PWD}/sqls/exec/staging/transform.sql`)) {
+      return await readFile(
+        `${process.env.PWD}/sqls/exec/staging/transform.sql`,
+      );
+    }
+    await this.logEvent(
+      null,
+      'ERROR',
+      'TRANSFORM CANNOT EXECUTE',
+      'SQL Transform does not exist',
+    );
+    throw new BadRequestException('SQL does not exist ');
   }
 
   async getProc(tables: string[]) {
