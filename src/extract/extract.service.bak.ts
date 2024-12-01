@@ -133,7 +133,9 @@ export class ExtractService {
   }
 
   async loadToStaging(name: string) {
-    const sql = await readFile(process.env.PWD + `/sqls/${name}.sql`);
+    const sql = await readFile(
+      process.env.PWD || process.cwd() + `/sqls/${name}.sql`,
+    );
     await this.stagingRepo.clear();
     if (typeof sql === 'string') {
       await this.stagingRepo.query(sql);

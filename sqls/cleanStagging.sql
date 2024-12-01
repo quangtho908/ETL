@@ -27,10 +27,9 @@ END $$;
 
 -- 2. Loại bỏ các mẫu khớp với regex '\b\d+ nhân\b' trong cột 'cpu'
 UPDATE public.staging
-SET
-    cpu = regexp_replace(cpu, '\\b\\d+ nhân\\b', '', 'g')
-WHERE
-    cpu ~ '\\b\\d+ nhân\\b';
+SET cpu = regexp_replace(cpu, '\s\d+\s*nhân$', '', 'g')
+WHERE cpu ~ '\s\d+\s*nhân$';
+
 
 -- 3a. Loại bỏ chuỗi '. Xem thông tin hãng' trong cột 'brand'
 UPDATE public.staging
@@ -61,10 +60,14 @@ WHERE
 
 -- 5. Loại bỏ các mẫu khớp với regex '\b\d+GB/\d+GB\b' trong cột 'name'
 UPDATE public.staging
-SET
-    name = regexp_replace(name, '\\b\\d+GB/\\d+GB\\b', '', 'g')
-WHERE
-    name ~ '\\b\\d+GB/\\d+GB\\b';
+SET name = regexp_replace(name, '\d+GB/\d+GB', '', 'g')
+WHERE name ~ '\d+GB/\d+GB';
+
+UPDATE public.staging
+SET name = regexp_replace(name, '\d+G$', '', 'g')
+WHERE name ~ '\d+G$';
+
+
 
 -- 6. Chuẩn hoá định dạng 'pricing' thành kiểu số
 UPDATE public.staging

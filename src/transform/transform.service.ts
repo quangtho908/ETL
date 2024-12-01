@@ -50,7 +50,9 @@ export class TransformService {
   }
 
   async getTransformSQL() {
-    return await readFile(`${process.env.PWD}/sqls/exec/staging/transform.sql`);
+    return await readFile(
+      `${process.env.PWD || process.cwd()}/sqls/exec/staging/transform.sql`,
+    );
   }
 
   async getProc(tables: string[]) {
@@ -58,10 +60,12 @@ export class TransformService {
     await Promise.all(
       tables.map(async (table) => {
         if (
-          fileExistsSync(`${process.env.PWD}/sqls/exec/dimension/${table}.sql`)
+          fileExistsSync(
+            `${process.env.PWD || process.cwd()}/sqls/exec/dimension/${table}.sql`,
+          )
         ) {
           result[table] = await readFile(
-            `${process.env.PWD}/sqls/exec/dimension/${table}.sql`,
+            `${process.env.PWD || process.cwd()}/sqls/exec/dimension/${table}.sql`,
           );
           return;
         }

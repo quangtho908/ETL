@@ -20,7 +20,9 @@ export class CleanService {
   async clean(id: string) {
     const config = await this.configModel.findById(id);
     const cleanOptions = JSON.parse(config.cleanOptions);
-    const sql = await readFile(process.env.PWD + '/sqls/queryStaging.sql');
+    const sql = await readFile(
+      process.env.PWD || process.cwd() + '/sqls/queryStaging.sql',
+    );
     if (typeof sql !== 'string') {
       return;
     }

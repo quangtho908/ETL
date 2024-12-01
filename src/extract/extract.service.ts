@@ -58,14 +58,14 @@ export class ExtractService {
       const writeStream = createWriteStream(`extracts_data/${config.file}`);
       const csv = json2csv(allProductsDetails);
 
-      writeStream.write(csv, async () => {
-        await directusDeleteFile(
-          `${process.env.PWD}/extracts_data/${config.file}`,
-        );
-        await directusUploadFile(
-          `${process.env.PWD}/extracts_data/${config.file}`,
-        );
-      });
+      // writeStream.write(csv, async () => {
+      // await directusDeleteFile(
+      //   `${process.env.PWD}/extracts_data/${config.file}`,
+      // );
+      // await directusUploadFile(
+      //   `${process.env.PWD}/extracts_data/${config.file}`,
+      // );
+      // });
     }
   }
 
