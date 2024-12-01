@@ -1,28 +1,33 @@
 -- 1. Thay thế 'undefined' bằng chuỗi rỗng trong các cột liên quan
-DO $$
-DECLARE
-    col_name TEXT;
-    query TEXT;
-BEGIN
-    -- Lặp qua tất cả các cột trong bảng public.staging
-    FOR col_name IN
-        SELECT column_name
-        FROM information_schema.columns
-        WHERE table_schema = 'public'
-          AND table_name = 'staging'
-          AND data_type IN ('character varying', 'text') -- Chỉ xử lý các cột kiểu chuỗi
-    LOOP
-        -- Xây dựng câu lệnh UPDATE động
+DO $$ 
+DECLARE 
+    col_name TEXT; 
+    query TEXT; 
+BEGIN 
+    -- Lặp qua tất cả các cột trong bảng public.staging 
+    FOR col_name IN 
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_schema = 'public' 
+          AND table_name = 'staging' 
+          AND data_type IN ('character varying', 'text') -- Chỉ xử lý các cột kiểu chuỗi 
+    LOOP 
+        -- Xây dựng câu lệnh UPDATE động để thay thế 'undefined' hoặc 'Hãng không công bố' bằng chuỗi rỗng
         query := FORMAT('
             UPDATE public.staging
-            SET %I = REPLACE(%I, ''undefined'', ''Hãng không công bố'')
-            WHERE %I LIKE ''%%undefined%%'';
-        ', col_name, col_name, col_name);
+            SET %I = REPLACE(REPLACE(%I, ''undefined'', ''''), ''Hãng không công bố'', '''')
+            WHERE %I LIKE ''%%undefined%%'' OR %I LIKE ''%%Hãng không công bố%%'';
+        ', col_name, col_name, col_name, col_name);
         
         -- Thực thi câu lệnh
-        EXECUTE query;
-    END LOOP;
+        EXECUTE query; 
+    END LOOP; 
 END $$;
+
+
+UPDATE public.staging
+SET pricing = REPLACE(pricing, 'Dự kiến: ', '')
+WHERE pricing LIKE '%Dự kiến: %';
 
 
 -- 2. Loại bỏ các mẫu khớp với regex '\b\d+ nhân\b' trong cột 'cpu'
