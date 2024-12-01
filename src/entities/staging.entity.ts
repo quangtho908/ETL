@@ -6,6 +6,12 @@ export class Staging {
   id: number;
 
   @Column({ nullable: true })
+  name: string;
+
+  @Column({ nullable: true })
+  pricing: string;
+
+  @Column({ nullable: true })
   os: string;
 
   @Column({ nullable: true })
@@ -130,10 +136,4 @@ export class Staging {
 
   @Column({ nullable: true })
   brand: string;
-
-  @Column({ nullable: true })
-  name: string;
-
-  @Column({ nullable: true })
-  pricing: string;
 }

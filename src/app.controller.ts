@@ -20,7 +20,7 @@ export class AppController {
   }
 
   @Get('clean') clean() {
-    return this.cleanService.clean('671707e06d945da2d303891f');
+    return this.cleanService.clean();
   }
 
   @Get('transform')

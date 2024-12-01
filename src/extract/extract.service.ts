@@ -11,7 +11,7 @@ import { Log } from 'src/schema/log.schema';
 import { DataSource, Repository } from 'typeorm';
 import { json2csv } from 'json-2-csv';
 import * as process from 'node:process';
-import { directusCreateFolder, directusUploadFile, readFile } from '../utils';
+import { directusUploadFile, readFile } from '../utils';
 import * as _ from 'lodash';
 
 @Injectable()
@@ -38,10 +38,6 @@ export class ExtractService {
   async extract() {
     await this.getConfig();
     let id = 1;
-    const folderId = await directusCreateFolder(
-      'c461424e-297f-4b59-9806-68b414b09700',
-      new Date().toLocaleDateString(),
-    );
     for (const config of this.configs) {
       try {
         const products = await this.fetchLinks(config);
@@ -70,7 +66,7 @@ export class ExtractService {
         writeStream.write(csv, async () => {
           await directusUploadFile(
             `${process.env.PWD}/extracts_data/${config.file}`,
-            folderId,
+            'd408c41c-b225-4b6d-ab35-90c43d935d3a',
           );
         });
       } catch (error) {
