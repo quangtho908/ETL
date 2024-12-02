@@ -109,7 +109,7 @@ CREATE TABLE "phone_table" (
   "gps" VARCHAR,
   "other_connection" VARCHAR,
   "dimension_weight" VARCHAR,
-  "date_created" VARCHAR,
+  "date_created" TIMESTAMP WITHOUT TIME ZONE,
   "pricing" NUMERIC,
   "created_at" TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "updated_at" TIMESTAMP WITHOUT TIME ZONE

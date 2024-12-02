@@ -1,13 +1,11 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
-import { InjectModel } from '@nestjs/mongoose';
 import { Config } from '../schema/config.schema';
-import { Model, Types } from 'mongoose';
-import { Log } from '../schema/log.schema';
 import { readFile } from '../utils';
 import * as process from 'node:process';
 import { fileExistsSync } from 'tsconfig-paths/lib/filesystem';
+import { LogService } from '../log/log.service';
 
 @Injectable()
 export class TransformService {
@@ -18,18 +16,8 @@ export class TransformService {
     private dataSource: DataSource,
     @InjectDataSource()
     private dataSourceStaging: DataSource,
-    @InjectModel(Config.name) private configModel: Model<Config>,
-    @InjectModel(Log.name) private logModel: Model<Log>,
+    private logService: LogService,
   ) {}
-
-  async getConfig() {
-    const configsList = await this.configModel.find({});
-    this.configs = configsList.filter(
-      (configData) =>
-        (configData.mapExtract !== null || configData.url !== null) &&
-        configData.enable,
-    );
-  }
 
   async start() {
     const tables = await this.getTables();
@@ -38,7 +26,7 @@ export class TransformService {
       this.getProc(tables),
     ]);
     await this.transform(procs, tables, transformSQL.toString());
-    await this.logEvent(null, 'SUCCESSFULLY', 'TRANSFORM DONE', '');
+    await this.logService.logEvent(null, 'SUCCESSFULLY', 'TRANSFORM DONE', '');
   }
 
   async getTables() {
@@ -56,7 +44,7 @@ export class TransformService {
         `${process.env.PWD}/sqls/exec/staging/transform.sql`,
       );
     }
-    await this.logEvent(
+    await this.logService.logEvent(
       null,
       'ERROR',
       'TRANSFORM CANNOT EXECUTE',
@@ -78,7 +66,7 @@ export class TransformService {
           return;
         }
 
-        await this.logEvent(
+        await this.logService.logEvent(
           null,
           'Warning',
           `MISSING PROCEDURE FOR DIMENSION TABLE: ${table}`,
@@ -127,7 +115,7 @@ export class TransformService {
                   );
                 }
               } catch (error) {
-                await this.logEvent(
+                await this.logService.logEvent(
                   null,
                   'Warning',
                   `LOAD TO DIMENSION IS MISSING: ${cloneProc}`,
@@ -150,7 +138,7 @@ export class TransformService {
           try {
             await this.dataSourceStaging.query(cloneTransformSQL);
           } catch (error) {
-            await this.logEvent(
+            await this.logService.logEvent(
               null,
               'ERROR',
               `TRANSFORM IS ERROR: ${cloneTransformSQL}`,
@@ -161,21 +149,5 @@ export class TransformService {
       );
       offset += 50;
     }
-  }
-
-  async logEvent(
-    configId: Types.ObjectId,
-    status: string,
-    message: string,
-    details: string,
-  ) {
-    const logEntry = new this.logModel({
-      configId,
-      timestamp: new Date(),
-      status,
-      message,
-      details,
-    });
-    await logEntry.save();
   }
 }

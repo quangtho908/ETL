@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { TransformService } from './transform.service';
 import { Staging } from '../entities/staging.entity';
+import { LoadService } from './load.service';
 import { LogModule } from '../log/log.module';
 
 @Module({
@@ -10,7 +10,7 @@ import { LogModule } from '../log/log.module';
     TypeOrmModule.forFeature([Staging]),
     LogModule,
   ],
-  providers: [TransformService],
-  exports: [TransformService],
+  providers: [LoadService],
+  exports: [LoadService],
 })
-export class TransformModule {}
+export class LoadModule {}

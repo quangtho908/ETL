@@ -1,7 +1,8 @@
-import { Controller, Get, Post } from '@nestjs/common';
+import { Controller, Get } from '@nestjs/common';
 import { ExtractService } from './extract/extract.service';
 import { CleanService } from './extract/clean.service';
 import { TransformService } from './transform/transform.service';
+import { LoadService } from './load/load.service';
 
 @Controller()
 export class AppController {
@@ -9,6 +10,7 @@ export class AppController {
     private extractService: ExtractService,
     private cleanService: CleanService,
     private transformService: TransformService,
+    private loadService: LoadService,
   ) {}
 
   @Get('extract') extract() {
@@ -26,5 +28,10 @@ export class AppController {
   @Get('transform')
   transform() {
     return this.transformService.start();
+  }
+
+  @Get('load')
+  load() {
+    return this.loadService.load();
   }
 }

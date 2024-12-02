@@ -6,6 +6,9 @@ import { ExtractModule } from './extract/extract.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Staging } from './entities/staging.entity';
 import { TransformModule } from './transform/transform.module';
+import { LoadModule } from './load/load.module';
+import { LogModule } from './log/log.module';
+
 @Module({
   imports: [
     MongooseModule.forRoot('mongodb://localhost:27017', {
@@ -32,6 +35,8 @@ import { TransformModule } from './transform/transform.module';
     }),
     ExtractModule,
     TransformModule,
+    LoadModule,
+    LogModule,
   ],
   controllers: [AppController],
   providers: [AppService],

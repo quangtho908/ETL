@@ -21,6 +21,9 @@ BEGIN
         EXECUTE query;
     END LOOP;
 
+    UPDATE public.staging
+    SET pricing = REPLACE(pricing, 'Dự kiến: ', '')
+    WHERE pricing LIKE '%Dự kiến: %';
 
     -- 2. Loại bỏ các mẫu khớp với regex '\b\d+ nhân\b' trong cột 'cpu'
     UPDATE public.staging
@@ -34,6 +37,12 @@ BEGIN
         brand = REPLACE(brand, '. Xem thông tin hãng', '')
     WHERE
         brand LIKE '%. Xem thông tin hãng%';
+
+   UPDATE public.staging
+   SET
+       max_charge = REPLACE(max_charge, 'Đang cập nhật', '')
+   WHERE
+       max_charge LIKE '%Đang cập nhật%';
 
     -- 3b. Đặt 'brand' thành 'Apple' nếu 'name' chứa 'iphone' (không phân biệt chữ hoa chữ thường)
     UPDATE public.staging
@@ -77,7 +86,7 @@ BEGIN
 
     -- Replace giờ và mAh
     UPDATE public.staging
-    SET battery_size = regexp_replace(battery_size, '\\b\\d+\\s*giờ|mAh', '', 'g')
+    SET battery_size = regexp_replace(battery_size, '\d+\s*giờ|mAh', '', 'gi')
     WHERE battery_size IS NOT NULL;
 
 

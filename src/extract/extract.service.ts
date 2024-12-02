@@ -13,6 +13,7 @@ import { json2csv } from 'json-2-csv';
 import * as process from 'node:process';
 import { directusUploadFile, readFile } from '../utils';
 import * as _ from 'lodash';
+import { LogService } from '../log/log.service';
 
 @Injectable()
 export class ExtractService {
@@ -20,9 +21,9 @@ export class ExtractService {
 
   constructor(
     @InjectModel(Config.name) private configModel: Model<Config>,
-    @InjectModel(Log.name) private logModel: Model<Log>,
     @InjectRepository(Staging) private stagingRepo: Repository<Staging>,
     @InjectDataSource() private dataSourceStaging: DataSource,
+    private logService: LogService,
   ) {}
 
   async getConfig() {
@@ -70,7 +71,7 @@ export class ExtractService {
           );
         });
       } catch (error) {
-        await this.logEvent(
+        await this.logService.logEvent(
           config._id,
           'WARNING',
           `EXTRACT ERROR: ${config.name}`,
@@ -78,7 +79,7 @@ export class ExtractService {
         );
       }
     }
-    await this.logEvent(null, 'SUCCESSFULLY', 'EXTRACT DONE', '');
+    await this.logService.logEvent(null, 'SUCCESSFULLY', 'EXTRACT DONE', '');
   }
 
   async loadToStaging() {
@@ -94,7 +95,7 @@ export class ExtractService {
         try {
           await this.dataSourceStaging.query(cloneSQL);
         } catch (error) {
-          await this.logEvent(
+          await this.logService.logEvent(
             config._id,
             'WARNING',
             `MISSING IMPORT TO STAGING: ${config.name}`,
@@ -104,7 +105,7 @@ export class ExtractService {
       }
     }
 
-    await this.logEvent(null, 'SUCCESSFULLY', 'LOAD TO STAGING DONE', '');
+    await this.logService.logEvent(null, 'SUCCESSFULLY', 'LOAD TO STAGING DONE', '');
   }
 
   async getProductDetails(
@@ -147,7 +148,7 @@ export class ExtractService {
         });
         const html = response.data.listproducts;
         if (!html || html.trim() === '') {
-          await this.logEvent(
+          await this.logService.logEvent(
             config._id,
             'Completed',
             'No more data to fetch',
@@ -168,7 +169,7 @@ export class ExtractService {
         });
         pageIndex++;
       } catch (error) {
-        await this.logEvent(
+        await this.logService.logEvent(
           config._id,
           'Error',
           'Error fetching data',
@@ -179,21 +180,5 @@ export class ExtractService {
       }
     }
     return result;
-  }
-
-  async logEvent(
-    configId: Types.ObjectId,
-    status: string,
-    message: string,
-    details: string,
-  ) {
-    const logEntry = new this.logModel({
-      configId,
-      timestamp: new Date(),
-      status,
-      message,
-      details,
-    });
-    await logEntry.save();
   }
 }
