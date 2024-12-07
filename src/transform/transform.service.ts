@@ -6,6 +6,7 @@ import { readFile } from '../utils';
 import * as process from 'node:process';
 import { fileExistsSync } from 'tsconfig-paths/lib/filesystem';
 import { LogService } from '../log/log.service';
+import * as _ from 'lodash';
 
 @Injectable()
 export class TransformService {
@@ -39,41 +40,50 @@ export class TransformService {
   }
 
   async getTransformSQL() {
+    let sql: unknown;
     if (fileExistsSync(`${process.env.PWD}/sqls/exec/staging/transform.sql`)) {
-      return await readFile(
+      sql = await readFile(
         `${process.env.PWD}/sqls/exec/staging/transform.sql`,
       );
     }
-    await this.logService.logEvent(
-      null,
-      'ERROR',
-      'TRANSFORM CANNOT EXECUTE',
-      'SQL Transform does not exist',
-    );
-    throw new BadRequestException('SQL Transform does not exist');
+    if (typeof sql !== 'string' || _.isEmpty(sql.trim())) {
+      await this.logService.logEvent(
+        null,
+        'ERROR',
+        'TRANSFORM CANNOT EXECUTE',
+        'SQL Transform does not exist',
+      );
+      throw new BadRequestException('SQL Transform does not exist');
+    }
+
+    return sql;
   }
 
   async getProc(tables: string[]) {
     const result = {};
     await Promise.all(
       tables.map(async (table) => {
+        let sql: unknown;
         if (
           fileExistsSync(`${process.env.PWD}/sqls/exec/dimension/${table}.sql`)
         ) {
-          result[table] = await readFile(
+          sql = await readFile(
             `${process.env.PWD}/sqls/exec/dimension/${table}.sql`,
           );
-          return;
         }
+        if (typeof sql !== 'string' || _.isEmpty(sql.trim())) {
+          await this.logService.logEvent(
+            null,
+            'ERROR',
+            `Missing procedure for dimension table: ${table}`,
+            'Missing ERROR',
+          );
 
-        await this.logService.logEvent(
-          null,
-          'ERROR',
-          `Missing procedure for dimension table: ${table}`,
-          'Missing ERROR',
-        );
-
-        throw new BadRequestException('Missing procedure for dimension table');
+          throw new BadRequestException(
+            'Missing procedure for dimension table',
+          );
+        }
+        result[table] = sql;
       }),
     );
     return result;

@@ -31,7 +31,7 @@ export class LoadService {
     const sql = await readFile(
       `${process.env.PWD}/sqls/exec/data_warehouse.sql`,
     );
-    if (_.isEmpty(sql) || typeof sql !== 'string') {
+    if (typeof sql !== 'string' || _.isEmpty(sql.trim())) {
       await this.logService.logEvent(
         null,
         'ERROR',
@@ -63,7 +63,7 @@ export class LoadService {
           } catch (error) {
             await this.logService.logEvent(
               null,
-              'Warning',
+              'WARNING',
               `LOAD TO WAREHOUSE IS MISSING: ${cloneSql}`,
               error.message,
             );
