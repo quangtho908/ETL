@@ -1,19 +1,19 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 import { createWriteStream, rmSync } from 'fs';
-import { Model, Types } from 'mongoose';
+import { Model } from 'mongoose';
 import { Staging } from 'src/entities/staging.entity';
 import { Config } from 'src/schema/config.schema';
-import { Log } from 'src/schema/log.schema';
 import { DataSource, Repository } from 'typeorm';
 import { json2csv } from 'json-2-csv';
 import * as process from 'node:process';
 import { directusUploadFile, readFile } from '../utils';
 import * as _ from 'lodash';
 import { LogService } from '../log/log.service';
+import { fileExistsSync } from 'tsconfig-paths/lib/filesystem';
 
 @Injectable()
 export class ExtractService {
@@ -37,6 +37,7 @@ export class ExtractService {
   }
 
   async extract() {
+    // đọc config từ mongodb
     await this.getConfig();
     let id = 1;
     for (const config of this.configs) {
@@ -85,6 +86,17 @@ export class ExtractService {
   async loadToStaging() {
     await this.getConfig();
     await this.stagingRepo.clear();
+    if (
+      !fileExistsSync(`${process.env.PWD}/sqls/loadToStaging/loadToStaging.sql`)
+    ) {
+      await this.logService.logEvent(
+        null,
+        'ERROR',
+        'LOAD TO STAGING CANNOT EXECUTE',
+        'SQL Transform does not exist',
+      );
+      throw new BadRequestException('SQL does not exist');
+    }
     const sql = await readFile(
       `${process.env.PWD}/sqls/loadToStaging/loadToStaging.sql`,
     );
@@ -105,7 +117,12 @@ export class ExtractService {
       }
     }
 
-    await this.logService.logEvent(null, 'SUCCESSFULLY', 'LOAD TO STAGING DONE', '');
+    await this.logService.logEvent(
+      null,
+      'SUCCESSFULLY',
+      'LOAD TO STAGING DONE',
+      '',
+    );
   }
 
   async getProductDetails(
