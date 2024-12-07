@@ -45,17 +45,17 @@ BEGIN
        max_charge LIKE '%Đang cập nhật%';
 
     -- 3b. Đặt 'brand' thành 'Apple' nếu 'name' chứa 'iphone' (không phân biệt chữ hoa chữ thường)
-    UPDATE public.staging
-    SET
-        brand = 'Apple'
-    WHERE
-        LOWER(name) LIKE '%iphone%';
-
 
 
     --3c. Thay brand từ name
     UPDATE public.staging
     SET brand = split_part(name, ' ', 1);
+
+    UPDATE public.staging
+    SET
+        brand = 'Apple'
+    WHERE
+        LOWER(name) LIKE '%iphone%';
 
     -- 4. Loại bỏ dấu chấm và ký hiệu tiền tệ '₫' trong cột 'pricing'
     UPDATE public.staging
