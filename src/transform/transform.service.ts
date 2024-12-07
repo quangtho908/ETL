@@ -50,7 +50,7 @@ export class TransformService {
       'TRANSFORM CANNOT EXECUTE',
       'SQL Transform does not exist',
     );
-    throw new BadRequestException('SQL does not exist ');
+    throw new BadRequestException('SQL Transform does not exist');
   }
 
   async getProc(tables: string[]) {
@@ -68,10 +68,12 @@ export class TransformService {
 
         await this.logService.logEvent(
           null,
-          'Warning',
-          `MISSING PROCEDURE FOR DIMENSION TABLE: ${table}`,
-          'Missing warning',
+          'ERROR',
+          `Missing procedure for dimension table: ${table}`,
+          'Missing ERROR',
         );
+
+        throw new BadRequestException('Missing procedure for dimension table');
       }),
     );
     return result;
@@ -95,37 +97,36 @@ export class TransformService {
           for (const table of tables) {
             const proc = procs[table];
 
-            if (!!proc) {
-              const columns = proc
-                .match(/<([^>]+)>/g)
-                .map((match) => match.slice(1, -1));
-              let cloneProc: string = proc;
-              for (const column of columns) {
-                cloneProc = cloneProc.replace(
-                  `<${column}>`,
-                  `${child[column] || 'NULL'}`,
+            const columns = proc
+              .match(/<([^>]+)>/g)
+              .map((match) => match.slice(1, -1));
+            let cloneProc: string = proc;
+            for (const column of columns) {
+              cloneProc = cloneProc.replace(
+                `<${column}>`,
+                `${child[column] || 'NULL'}`,
+              );
+            }
+            try {
+              const results = await this.dataSource.query(cloneProc);
+              for (const field in results[0]) {
+                cloneTransformSQL = cloneTransformSQL.replace(
+                  `<${field}>`,
+                  results[0][field] || 'NULL',
                 );
               }
-              try {
-                const results = await this.dataSource.query(cloneProc);
-                for (const field in results[0]) {
-                  cloneTransformSQL = cloneTransformSQL.replace(
-                    `<${field}>`,
-                    results[0][field] || 'NULL',
-                  );
-                }
-              } catch (error) {
-                await this.logService.logEvent(
-                  null,
-                  'WARNING',
-                  `LOAD TO DIMENSION IS MISSING: ${cloneProc}`,
-                  error.message,
-                );
+            } catch (error) {
+              await this.logService.logEvent(
+                null,
+                'WARNING',
+                `LOAD TO DIMENSION IS MISSING: ${cloneProc}`,
+                error.message,
+              );
 
-                return;
-              }
+              return;
             }
           }
+
           const columns = cloneTransformSQL
             .match(/<([^>]+)>/g)
             .map((match) => match.slice(1, -1));
