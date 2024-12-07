@@ -117,7 +117,7 @@ export class TransformService {
               } catch (error) {
                 await this.logService.logEvent(
                   null,
-                  'Warning',
+                  'WARNING',
                   `LOAD TO DIMENSION IS MISSING: ${cloneProc}`,
                   error.message,
                 );
@@ -140,8 +140,8 @@ export class TransformService {
           } catch (error) {
             await this.logService.logEvent(
               null,
-              'ERROR',
-              `TRANSFORM IS ERROR: ${cloneTransformSQL}`,
+              'WARNING',
+              `TRANSFORM IS MISSING: ${cloneTransformSQL}`,
               error.message,
             );
           }
