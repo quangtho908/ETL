@@ -8,6 +8,7 @@ services:
       - "27017:27017"
     volumes:
       - ./data:/data/db
+      - ./sqls/migrations/mongodb:/migration
     networks:
       dw_vpc:
         ipv4_address: 124.23.1.29
