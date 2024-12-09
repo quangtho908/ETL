@@ -3,17 +3,54 @@ version: '3.1'
 services:
   mongodb:
     image: mongo:8.0.1
-    restart: always
+    container_name: dw_mongodb
     ports:
-      - 27017:27017
+      - "27017:27017"
     volumes:
       - ./data:/data/db
+    networks:
+      dw_vpc:
+        ipv4_address: 124.23.1.29
+
   postgres:
     image: postgres:16.4
+    container_name: dw_postgres
+    working_dir: /staging
     ports:
-      - 5432:5432
+      - "5432:5432"
     volumes:
-      - ./postgres:/var/lib/postgresql/data
+      - ./data/postgres:/var/lib/postgresql/data
       - ./extracts_data/:/staging
     environment:
       - POSTGRES_PASSWORD=admin
+    networks:
+      dw_vpc:
+        ipv4_address: 124.23.1.32
+
+  directus:
+    image: directus/directus
+    container_name: dw_directus
+    ports:
+      - "8055:8055"
+    environment:
+      SECRET: "replace-with-secure-random-value"
+      ADMIN_EMAIL: "admin@example.com"
+      ADMIN_PASSWORD: "admin"
+      DB_CLIENT: "pg"
+      DB_HOST: "124.23.1.32"
+      DB_PORT: 5432
+      DB_DATABASE: directus
+      DB_USER: postgres
+      DB_PASSWORD: admin
+      WEBSOCKETS_ENABLED: "true"
+    networks:
+      dw_vpc:
+        ipv4_address: 124.23.1.11
+
+networks:
+  dw_vpc:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 124.23.1.0/24
+          gateway: 124.23.1.1
