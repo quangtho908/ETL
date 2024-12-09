@@ -98,56 +98,12 @@ export class ExtractService {
       }
     }
     // 4 > Không
-    // 4.2. Ghi log với nội dung "EXTRACT DONE"
+    // 4.1. Ghi log với nội dung "EXTRACT DONE"
     await this.logService.logEvent(null, 'SUCCESSFULLY', 'EXTRACT DONE', '');
-  }
-
-  async loadToStaging() {
-    // 1. Lấy danh sách cấu hình bằng hàm getConfig()
-    await this.getConfig();
-    // 2. Xóa dữ liệu cũ trong staging
-    await this.stagingRepo.clear();
-    // 3. Có file loadToStaging.sql không?
-    if (
-      !fileExistsSync(`${process.env.PWD}/sqls/loadToStaging/loadToStaging.sql`)
-    ) {
-      // 3.1 Ghi log "LOAD TO STAGING CANNOT EXECUTE"
-      await this.logService.logEvent(
-        null,
-        'ERROR',
-        'LOAD TO STAGING CANNOT EXECUTE',
-        'SQL Transform does not exist',
-      );
-      // 3.2. Trả về status 400
-      throw new BadRequestException('SQL does not exist');
-    }
-    // 4. Đọc tệp SQL loadToStaging.sql
-    const sql = await readFile(
-      `${process.env.PWD}/sqls/loadToStaging/loadToStaging.sql`,
-    );
-    for (const config of this.configs) {
-      if (typeof sql === 'string') {
-        let cloneSQL = sql;
-        cloneSQL = cloneSQL.replace('<path>', config.file);
-        try {
-          await this.dataSourceStaging.query(cloneSQL);
-        } catch (error) {
-          await this.logService.logEvent(
-            config._id,
-            'WARNING',
-            `MISSING IMPORT TO STAGING: ${config.name}`,
-            error.message,
-          );
-        }
-      }
-    }
-
-    await this.logService.logEvent(
-      null,
-      'SUCCESSFULLY',
-      'LOAD TO STAGING DONE',
-      '',
-    );
+    // 4.2 Trả về statusCode 200
+    return {
+      statusCode: 200,
+    };
   }
 
   async getProductDetails(
@@ -176,12 +132,14 @@ export class ExtractService {
   }
 
   async fetchLinks(config: Config) {
+    // 4.1.1 Lấy tham số url, headers,.. từ config để call API
     const url = `${config.url}${config.path}${config.params}`;
     const headers = JSON.parse(config.headers);
     let pageIndex = 0;
     const result = [];
     while (true) {
       try {
+        // 4.1.2 Gọi axios lấy dữ liệu html theo từ pageIndex (ban đầu là 0)
         const response = await axios({
           url: url + pageIndex,
           method: config.methodList,
@@ -189,7 +147,10 @@ export class ExtractService {
           data: config.bodyList,
         });
         const html = response.data.listproducts;
+        // 4.1.3 Có html trả về hay không?
         if (!html || html.trim() === '') {
+          // 4.1.3 > Không
+          // 4.1.4 Ghi log "No more data to fetch"
           await this.logService.logEvent(
             config._id,
             'Completed',
@@ -198,10 +159,15 @@ export class ExtractService {
           );
           break;
         }
+
         const $ = cheerio.load(html);
+        // 4.1.4 Lặp qua các config.queryUrlDetail
         $(config.queryUrlDetail).each((_index, element) => {
+          // 4.1.5 Lấy href của sản phẩm
           const href = $(element).attr('href');
+          // 4.1.6 Có href hay không?
           if (href) {
+            // 4.1.7 Thêm name,pricing,link của sản phẩm vào mảng kết quả
             result.push({
               name: $(element).find(config.queryName).text().trim(),
               pricing: $(element).find(config.queryPricing).text().trim(),
@@ -209,8 +175,10 @@ export class ExtractService {
             });
           }
         });
+        // 4.1.8 Tăng pageIndex lên 1
         pageIndex++;
       } catch (error) {
+        // 4.1.10 Ghi log lỗi "Error fetching data"
         await this.logService.logEvent(
           config._id,
           'Error',
@@ -222,5 +190,60 @@ export class ExtractService {
       }
     }
     return result;
+  }
+
+  // ĐÂY LÀ CỦA PHẦN LOAD TO STAGING
+  async loadToStaging() {
+    // 1. Lấy danh sách cấu hình bằng hàm getConfig()
+    await this.getConfig();
+    // 2. Xóa dữ liệu cũ trong staging
+    await this.stagingRepo.clear();
+    // 3. Có file loadToStaging.sql không?
+    if (
+      !fileExistsSync(`${process.env.PWD}/sqls/loadToStaging/loadToStaging.sql`)
+    ) {
+      // 3.1 Ghi log "LOAD TO STAGING CANNOT EXECUTE"
+      await this.logService.logEvent(
+        null,
+        'ERROR',
+        'LOAD TO STAGING CANNOT EXECUTE',
+        'SQL Transform does not exist',
+      );
+      // 3.2. Trả về status 400
+      throw new BadRequestException('SQL does not exist');
+    }
+    // 4. Đọc tệp SQL loadToStaging.sql
+    const sql = await readFile(
+      `${process.env.PWD}/sqls/loadToStaging/loadToStaging.sql`,
+    );
+    // 5. Lặp qua từng cấu hình trong this.configs
+    for (const config of this.configs) {
+      // 5 > Có
+      if (typeof sql === 'string') {
+        let cloneSQL = sql;
+        // 5.1 Thay thế <path> trong câu SQL bằng đường dẫn của config
+        cloneSQL = cloneSQL.replace('<path>', config.file);
+        try {
+          // 5.2 Thực thi câu lệnh SQL với dataSourceStaging
+          await this.dataSourceStaging.query(cloneSQL);
+        } catch (error) {
+          // 5.3 Ghi log lỗi
+          await this.logService.logEvent(
+            config._id,
+            'WARNING',
+            `MISSING IMPORT TO STAGING: ${config.name}`,
+            error.message,
+          );
+        }
+      }
+    }
+    // 5 > Không
+    // 6. Ghi Log "LOAD TO STAGING DONE"
+    await this.logService.logEvent(
+      null,
+      'SUCCESSFULLY',
+      'LOAD TO STAGING DONE',
+      '',
+    );
   }
 }
