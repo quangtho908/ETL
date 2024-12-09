@@ -103,19 +103,25 @@ export class ExtractService {
   }
 
   async loadToStaging() {
+    // 1. Lấy danh sách cấu hình bằng hàm getConfig()
     await this.getConfig();
+    // 2. Xóa dữ liệu cũ trong staging
     await this.stagingRepo.clear();
+    // 3. Có file loadToStaging.sql không?
     if (
       !fileExistsSync(`${process.env.PWD}/sqls/loadToStaging/loadToStaging.sql`)
     ) {
+      // 3.1 Ghi log "LOAD TO STAGING CANNOT EXECUTE"
       await this.logService.logEvent(
         null,
         'ERROR',
         'LOAD TO STAGING CANNOT EXECUTE',
         'SQL Transform does not exist',
       );
+      // 3.2. Trả về status 400
       throw new BadRequestException('SQL does not exist');
     }
+    // 4. Đọc tệp SQL loadToStaging.sql
     const sql = await readFile(
       `${process.env.PWD}/sqls/loadToStaging/loadToStaging.sql`,
     );
