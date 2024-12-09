@@ -71,18 +71,18 @@ export class ExtractService {
         }
         // 6 > Không
         // 7. Xóa file cũ và lưu file mới dưới dạng CSV
-        rmSync(`${process.env.PWD}/extracts_data/${config.file}`, {
+        rmSync(`${process.env.PWD}/${config.file}`, {
           force: true,
         });
         const writeStream = createWriteStream(
-          `${process.env.PWD}/extracts_data/${config.file}`,
+          `${process.env.PWD}/${config.file}`,
         );
         const csv = json2csv(allProductsDetails);
 
         // 8. Upload file lên Directus
         writeStream.write(csv, async () => {
           await directusUploadFile(
-            `${process.env.PWD}/extracts_data/${config.file}`,
+            `${process.env.PWD}/${config.file}`,
             'd408c41c-b225-4b6d-ab35-90c43d935d3a',
           );
         });
@@ -128,7 +128,7 @@ export class ExtractService {
     for (const config of this.configs) {
       if (typeof sql === 'string') {
         let cloneSQL = sql;
-        cloneSQL = cloneSQL.replace('<path>', `/extracts_data/${config.file}`);
+        cloneSQL = cloneSQL.replace('<path>', config.file);
         try {
           await this.dataSourceStaging.query(cloneSQL);
         } catch (error) {
@@ -176,14 +176,12 @@ export class ExtractService {
   }
 
   async fetchLinks(config: Config) {
-    // 4.1.1 Lấy tham số url, headers,.. từ config để call API
     const url = `${config.url}${config.path}${config.params}`;
     const headers = JSON.parse(config.headers);
     let pageIndex = 0;
     const result = [];
     while (true) {
       try {
-        // 4.1.2 Gọi axios lấy dữ liệu html theo từ pageIndex (ban đầu là 0)
         const response = await axios({
           url: url + pageIndex,
           method: config.methodList,
@@ -191,10 +189,7 @@ export class ExtractService {
           data: config.bodyList,
         });
         const html = response.data.listproducts;
-        // 4.1.3 Có html trả về hay không?
         if (!html || html.trim() === '') {
-          // 4.1.3 > Không
-          // 4.1.4 Ghi log "No more data to fetch"
           await this.logService.logEvent(
             config._id,
             'Completed',
@@ -203,15 +198,10 @@ export class ExtractService {
           );
           break;
         }
-
         const $ = cheerio.load(html);
-        // 4.1.4 Lặp qua các config.queryUrlDetail
         $(config.queryUrlDetail).each((_index, element) => {
-          // 4.1.5 Lấy href của sản phẩm
           const href = $(element).attr('href');
-          // 4.1.6 Có href hay không?
           if (href) {
-            // 4.1.7 Thêm name,pricing,link của sản phẩm vào mảng kết quả
             result.push({
               name: $(element).find(config.queryName).text().trim(),
               pricing: $(element).find(config.queryPricing).text().trim(),
@@ -219,10 +209,8 @@ export class ExtractService {
             });
           }
         });
-        // 4.1.8 Tăng pageIndex lên 1
         pageIndex++;
       } catch (error) {
-        // 4.1.10 Ghi log lỗi "Error fetching data"
         await this.logService.logEvent(
           config._id,
           'Error',
