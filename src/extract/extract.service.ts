@@ -36,19 +36,29 @@ export class ExtractService {
     );
   }
 
+  //1. Khởi tạo quy trình extract()
   async extract() {
-    // đọc config từ mongodb
+    // 2. Lấy danh sách cấu hình từ CSDL getConfig()
     await this.getConfig();
     let id = 1;
+    // 3. Lặp qua từng cấu hình trong this.configs
+    // 4. Còn config không?
     for (const config of this.configs) {
+      // 4 > Có
       try {
+        // 4.1. Lấy danh sách sản phẩm từ liên kết fetchLinks(config)
         const products = await this.fetchLinks(config);
         const chunkSize = 10;
         const allProductsDetails = [];
+        // 5. Chia nhỏ các sản phẩm thành các chunk
+        // 6. Còn sản phẩm trong chunk ?
         for (let i = 0; i < products.length; i += chunkSize) {
+          // 6 > Có
           const chunk = products.slice(i, i + chunkSize);
+          // 6.1 Tạo Promise.all để lấy tất cả chi tiết sản phẩm
           const productsDetails = await Promise.all(
             chunk.map((product) =>
+              // 6.2. Lấy chi tiết sản phẩm từ liên kết getProductDetails(link,config,product)
               this.getProductDetails(product.link, config, {
                 id: id++,
                 name: product.name,
@@ -56,8 +66,11 @@ export class ExtractService {
               }),
             ),
           );
+          // 6.3. Thêm danh sách chi tiết sản phẩm vào danh sách allProductsDetails
           allProductsDetails.push(...productsDetails);
         }
+        // 6 > Không
+        // 7. Xóa file cũ và lưu file mới dưới dạng CSV
         rmSync(`${process.env.PWD}/extracts_data/${config.file}`, {
           force: true,
         });
@@ -65,6 +78,8 @@ export class ExtractService {
           `${process.env.PWD}/extracts_data/${config.file}`,
         );
         const csv = json2csv(allProductsDetails);
+
+        // 8. Upload file lên Directus
         writeStream.write(csv, async () => {
           await directusUploadFile(
             `${process.env.PWD}/extracts_data/${config.file}`,
@@ -72,6 +87,8 @@ export class ExtractService {
           );
         });
       } catch (error) {
+        // 9. Lỗi
+        // 9.1 Ghi log "EXTRACT ERROR" kèm tên config
         await this.logService.logEvent(
           config._id,
           'WARNING',
@@ -80,6 +97,8 @@ export class ExtractService {
         );
       }
     }
+    // 4 > Không
+    // 4.2. Ghi log với nội dung "EXTRACT DONE"
     await this.logService.logEvent(null, 'SUCCESSFULLY', 'EXTRACT DONE', '');
   }
 
@@ -151,12 +170,14 @@ export class ExtractService {
   }
 
   async fetchLinks(config: Config) {
+    // 4.1.1 Lấy tham số url, headers,.. từ config để call API
     const url = `${config.url}${config.path}${config.params}`;
     const headers = JSON.parse(config.headers);
     let pageIndex = 0;
     const result = [];
     while (true) {
       try {
+        // 4.1.2 Gọi axios lấy dữ liệu html theo từ pageIndex (ban đầu là 0)
         const response = await axios({
           url: url + pageIndex,
           method: config.methodList,
@@ -164,7 +185,10 @@ export class ExtractService {
           data: config.bodyList,
         });
         const html = response.data.listproducts;
+        // 4.1.3 Có html trả về hay không?
         if (!html || html.trim() === '') {
+          // 4.1.3 > Không
+          // 4.1.4 Ghi log "No more data to fetch"
           await this.logService.logEvent(
             config._id,
             'Completed',
@@ -173,10 +197,15 @@ export class ExtractService {
           );
           break;
         }
+
         const $ = cheerio.load(html);
+        // 4.1.4 Lặp qua các config.queryUrlDetail
         $(config.queryUrlDetail).each((_index, element) => {
+          // 4.1.5 Lấy href của sản phẩm
           const href = $(element).attr('href');
+          // 4.1.6 Có href hay không?
           if (href) {
+            // 4.1.7 Thêm name,pricing,link của sản phẩm vào mảng kết quả
             result.push({
               name: $(element).find(config.queryName).text().trim(),
               pricing: $(element).find(config.queryPricing).text().trim(),
@@ -184,8 +213,10 @@ export class ExtractService {
             });
           }
         });
+        // 4.1.8 Tăng pageIndex lên 1
         pageIndex++;
       } catch (error) {
+        // 4.1.10 Ghi log lỗi "Error fetching data"
         await this.logService.logEvent(
           config._id,
           'Error',
