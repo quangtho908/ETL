@@ -19,6 +19,7 @@ export class LoadService {
 
   public async load() {
     if (!fileExistsSync(`${process.env.PWD}/sqls/exec/data_warehouse.sql`)) {
+      // nếu file sql load không tồn tại ghi log lỗi và trả về lỗi 400
       await this.logService.logEvent(
         null,
         'ERROR',
@@ -27,10 +28,11 @@ export class LoadService {
       );
       throw new BadRequestException('SQL Load not exists');
     }
-
+    // file tồn tại đọc file
     const sql = await readFile(
       `${process.env.PWD}/sqls/exec/data_warehouse.sql`,
     );
+    // dữ liệu file trống ghi log lỗi và trả về lỗi 400
     if (typeof sql !== 'string' || _.isEmpty(sql.trim())) {
       await this.logService.logEvent(
         null,
@@ -42,6 +44,7 @@ export class LoadService {
     }
     let offset = 0;
     while (true) {
+      // lặp qua từng 50 hàng dữ liệu trong bảng staging_transform
       const products = await this.dataSourceStaging.query(
         `SELECT * FROM public.staging_transform ORDER BY id OFFSET ${offset} LIMIT 50`,
       );
@@ -50,17 +53,21 @@ export class LoadService {
         .match(/<([^>]+)>/g)
         .map((match) => match.slice(1, -1));
       await Promise.all(
+        // lặp qua từng hàng dữ liệu
         products.map(async (product) => {
           let cloneSql = sql;
           for (const column of columns) {
+            // thay thế dữ liệu vào câu sql
             cloneSql = cloneSql.replace(
               `<${column}>`,
               product[column] || 'NULL',
             );
           }
           try {
+            // thực hiện upsert lên data_warehouse
             await this.dataSource.query(cloneSql);
           } catch (error) {
+            // nếu xảy ra lỗi ghi log cảnh báo và chuyển đến bản ghi tiếp theo
             await this.logService.logEvent(
               null,
               'WARNING',

@@ -21,12 +21,16 @@ export class TransformService {
   ) {}
 
   async start() {
+    // 1. Lấy danh sách các bảng dimension
     const tables = await this.getTables();
+    // 2. lấy câu sql để transform và các câu lệnh transform với bảng dimension
     const [transformSQL, procs] = await Promise.all([
       this.getTransformSQL(),
       this.getProc(tables),
     ]);
+    // 3 thực hiện transform
     await this.transform(procs, tables, transformSQL.toString());
+    // kết thúc quá trình transform ghi log thành công
     await this.logService.logEvent(null, 'SUCCESSFULLY', 'TRANSFORM DONE', '');
   }
 
@@ -41,11 +45,13 @@ export class TransformService {
 
   async getTransformSQL() {
     let sql: unknown;
+    // đọc sql nếu file tồn tại
     if (fileExistsSync(`${process.env.PWD}/sqls/exec/staging/transform.sql`)) {
       sql = await readFile(
         `${process.env.PWD}/sqls/exec/staging/transform.sql`,
       );
     }
+    // nếu file chứa sql transform không tồn tại hoặc dữ liệu trống ghi log và trả về lỗi 400
     if (typeof sql !== 'string' || _.isEmpty(sql.trim())) {
       await this.logService.logEvent(
         null,
@@ -61,16 +67,19 @@ export class TransformService {
 
   async getProc(tables: string[]) {
     const result = {};
+    // lấy sql của các bảng dimension
     await Promise.all(
       tables.map(async (table) => {
         let sql: unknown;
         if (
+          // file tồn tại thì dọc dữ liệu của file
           fileExistsSync(`${process.env.PWD}/sqls/exec/dimension/${table}.sql`)
         ) {
           sql = await readFile(
             `${process.env.PWD}/sqls/exec/dimension/${table}.sql`,
           );
         }
+        // nếu file chứa sql của bất kỳ dimension nào không tồn tại ghi log và trả về lỗi 400
         if (typeof sql !== 'string' || _.isEmpty(sql.trim())) {
           await this.logService.logEvent(
             null,
@@ -78,7 +87,7 @@ export class TransformService {
             `Missing procedure for dimension table: ${table}`,
             'Missing ERROR',
           );
-
+          // trả về lỗi 400
           throw new BadRequestException(
             'Missing procedure for dimension table',
           );
@@ -94,23 +103,29 @@ export class TransformService {
     tables: string[],
     transformSQL: string,
   ) {
+    // xoá toàn bộ bảng staging_transform
     await this.dataSourceStaging.query('TRUNCATE staging_transform');
     let offset = 0;
     while (true) {
+      // lặp qua từng nhóm 50 hàng trong bảng staging
       const data = await this.dataSourceStaging.query(
         `SELECT * FROM public.staging ORDER BY id OFFSET ${offset} LIMIT 50`,
       );
       if (data.length === 0) break;
       await Promise.all(
+        // lặp qua từng hàng dữ liệu
         data.map(async (child) => {
           let cloneTransformSQL = transformSQL;
+          // lặp qua từng tên bảng
           for (const table of tables) {
+            // lấy câu sql của bảng
             const proc = procs[table];
 
             const columns = proc
               .match(/<([^>]+)>/g)
               .map((match) => match.slice(1, -1));
             let cloneProc: string = proc;
+            // thay thế dữ liệu vào câu sql để chạy
             for (const column of columns) {
               cloneProc = cloneProc.replace(
                 `<${column}>`,
@@ -118,7 +133,9 @@ export class TransformService {
               );
             }
             try {
+              // chạy câu dữ liệu để upsert vào bảng dimension
               const results = await this.dataSource.query(cloneProc);
+              // update dữ liệu của câu sql transform
               for (const field in results[0]) {
                 cloneTransformSQL = cloneTransformSQL.replace(
                   `<${field}>`,
@@ -126,6 +143,7 @@ export class TransformService {
                 );
               }
             } catch (error) {
+              // nếu xảy ra bất kỳ lỗi nào tiến hành ngắt và chuyển sang cột dữ liệu tiếp theo
               await this.logService.logEvent(
                 null,
                 'WARNING',
@@ -136,6 +154,7 @@ export class TransformService {
               return;
             }
           }
+          // thực hiện insert dữ liệu không phải là dimension vào câu sql
 
           const columns = cloneTransformSQL
             .match(/<([^>]+)>/g)
@@ -147,8 +166,10 @@ export class TransformService {
             );
           }
           try {
+            // thực hiện insert dữ liệu vào bảng staging transform
             await this.dataSourceStaging.query(cloneTransformSQL);
           } catch (error) {
+            // nếu quá trình insert lỗi ghi log và trả về lỗi
             await this.logService.logEvent(
               null,
               'WARNING',
