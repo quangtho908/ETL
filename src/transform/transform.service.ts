@@ -21,16 +21,20 @@ export class TransformService {
   ) {}
 
   async start() {
-    // 1. Lấy danh sách các bảng dimension
+    // 3. gọi hàm getTable() lấy danh sách các bảng
     const tables = await this.getTables();
-    // 2. lấy câu sql để transform và các câu lệnh transform với bảng dimension
+    // 4. lấy câu sql để transform và các câu lệnh transform với bảng dimension
     const [transformSQL, procs] = await Promise.all([
+      // 4.1 gọi hàm getTransformSQL() để lấy sql transform
       this.getTransformSQL(),
+      // 4.2 gọi hàm getProc(tables)
       this.getProc(tables),
     ]);
-    // 3 thực hiện transform
+    // 5. sau await hoàn thành đọc sql từ file
+    // 6. thực hiện transform gọi hàm transform()
     await this.transform(procs, tables, transformSQL.toString());
-    // kết thúc quá trình transform ghi log thành công
+    // sau khi hàm transform hoàn thành
+    // 9.2 Ghi log thành công
     await this.logService.logEvent(null, 'SUCCESSFULLY', 'TRANSFORM DONE', '');
   }
 
@@ -45,13 +49,13 @@ export class TransformService {
 
   async getTransformSQL() {
     let sql: unknown;
-    // đọc sql nếu file tồn tại
+    // 4.1.1 đọc sql nếu file tồn tại
     if (fileExistsSync(`${process.env.PWD}/sqls/exec/staging/transform.sql`)) {
       sql = await readFile(
         `${process.env.PWD}/sqls/exec/staging/transform.sql`,
       );
     }
-    // nếu file chứa sql transform không tồn tại hoặc dữ liệu trống ghi log và trả về lỗi 400
+    // 4.1.2 nếu file chứa sql transform không tồn tại hoặc dữ liệu trống ghi log
     if (typeof sql !== 'string' || _.isEmpty(sql.trim())) {
       await this.logService.logEvent(
         null,
@@ -59,6 +63,7 @@ export class TransformService {
         'TRANSFORM CANNOT EXECUTE',
         'SQL Transform does not exist',
       );
+      // 4.1.3 Trả về response error status code 400 BadRequestException
       throw new BadRequestException('SQL Transform does not exist');
     }
 
@@ -69,17 +74,18 @@ export class TransformService {
     const result = {};
     // lấy sql của các bảng dimension
     await Promise.all(
+      // 4.2.1 lặp qua từng tên bảng
       tables.map(async (table) => {
         let sql: unknown;
         if (
-          // file tồn tại thì dọc dữ liệu của file
+          // 4.2.2 Đọc file sqls/exec/dimension/${table}.sql để lấy sql load vào bảng dimension
           fileExistsSync(`${process.env.PWD}/sqls/exec/dimension/${table}.sql`)
         ) {
           sql = await readFile(
             `${process.env.PWD}/sqls/exec/dimension/${table}.sql`,
           );
         }
-        // nếu file chứa sql của bất kỳ dimension nào không tồn tại ghi log và trả về lỗi 400
+        // 4.2.3 nếu file chứa sql của bất kỳ dimension nào không tồn tại ghi log
         if (typeof sql !== 'string' || _.isEmpty(sql.trim())) {
           await this.logService.logEvent(
             null,
@@ -87,7 +93,7 @@ export class TransformService {
             `Missing procedure for dimension table: ${table}`,
             'Missing ERROR',
           );
-          // trả về lỗi 400
+          // 4.2.4 Trả về response error status code 400  BadRequestException
           throw new BadRequestException(
             'Missing procedure for dimension table',
           );
@@ -103,20 +109,20 @@ export class TransformService {
     tables: string[],
     transformSQL: string,
   ) {
-    // xoá toàn bộ bảng staging_transform
+    // 7. TRUNCATE bảng staging_transform
     await this.dataSourceStaging.query('TRUNCATE staging_transform');
     let offset = 0;
     while (true) {
-      // lặp qua từng nhóm 50 hàng trong bảng staging
+      // 8 Chia dữ liệu staging thành từng nhóm 50 dòng dữ liệu
       const data = await this.dataSourceStaging.query(
         `SELECT * FROM public.staging ORDER BY id OFFSET ${offset} LIMIT 50`,
       );
       if (data.length === 0) break;
       await Promise.all(
-        // lặp qua từng hàng dữ liệu
+        // 9. Duyệt qua từng nhóm dữ liệu (50 dòng)
         data.map(async (child) => {
           let cloneTransformSQL = transformSQL;
-          // lặp qua từng tên bảng
+          // 9.1.1 Lặp qua từng tên bảng
           for (const table of tables) {
             // lấy câu sql của bảng
             const proc = procs[table];
@@ -125,7 +131,7 @@ export class TransformService {
               .match(/<([^>]+)>/g)
               .map((match) => match.slice(1, -1));
             let cloneProc: string = proc;
-            // thay thế dữ liệu vào câu sql để chạy
+            // 9.1.2.Thay thế các giá trị vào sql  dimension bằng cách áp dụng procedure của bảng.
             for (const column of columns) {
               cloneProc = cloneProc.replace(
                 `<${column}>`,
@@ -133,9 +139,9 @@ export class TransformService {
               );
             }
             try {
-              // chạy câu dữ liệu để upsert vào bảng dimension
+              // 9.1.2.1 chèn dữ liệu mới vào bảng dimension.
               const results = await this.dataSource.query(cloneProc);
-              // update dữ liệu của câu sql transform
+              // 9.1.2.2 Thay thế id của dimension vừa được thêm vào câu lệnh sql transform
               for (const field in results[0]) {
                 cloneTransformSQL = cloneTransformSQL.replace(
                   `<${field}>`,
@@ -143,7 +149,7 @@ export class TransformService {
                 );
               }
             } catch (error) {
-              // nếu xảy ra bất kỳ lỗi nào tiến hành ngắt và chuyển sang cột dữ liệu tiếp theo
+              // 10. Ghi log cảnh báo
               await this.logService.logEvent(
                 null,
                 'WARNING',
@@ -154,7 +160,7 @@ export class TransformService {
               return;
             }
           }
-          // thực hiện insert dữ liệu không phải là dimension vào câu sql
+          // 9.1.3. Thay thế các dữ liệu không phải dimension vào câu sql transform
 
           const columns = cloneTransformSQL
             .match(/<([^>]+)>/g)
@@ -166,10 +172,10 @@ export class TransformService {
             );
           }
           try {
-            // thực hiện insert dữ liệu vào bảng staging transform
+            // 9.1.4 Thực hiện insert dữ liệu vào bảng staging_transform
             await this.dataSourceStaging.query(cloneTransformSQL);
           } catch (error) {
-            // nếu quá trình insert lỗi ghi log và trả về lỗi
+            // 10. Ghi log cảnh báo nếu xảy ra lỗi
             await this.logService.logEvent(
               null,
               'WARNING',
