@@ -6,17 +6,20 @@ import { ExtractModule } from './extract/extract.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Staging } from './entities/staging.entity';
 import { TransformModule } from './transform/transform.module';
-import { ServeStaticModule } from '@nestjs/serve-static';
-import * as process from 'node:process';
-import { join } from 'path';
+import { LoadModule } from './load/load.module';
+import { LogModule } from './log/log.module';
+
 @Module({
   imports: [
     MongooseModule.forRoot('mongodb://localhost:27017', {
       dbName: 'infodb',
     }),
+<<<<<<< HEAD
     ServeStaticModule.forRoot({
       rootPath: join(process.env.PWD || process.cwd(), 'extracts_data'),
     }),
+=======
+>>>>>>> 6c22b5771863c04ee01dff7936104cb931227b66
     TypeOrmModule.forRoot({
       type: 'postgres',
       host: 'localhost',
@@ -38,6 +41,8 @@ import { join } from 'path';
     }),
     ExtractModule,
     TransformModule,
+    LoadModule,
+    LogModule,
   ],
   controllers: [AppController],
   providers: [AppService],
